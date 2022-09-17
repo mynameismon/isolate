@@ -86,36 +86,38 @@ make_dir(char *path)
 static void
 walktree_fd(int dir_fd, dev_t root_dev, void (*callback)(int dir_fd, const char *name, bool is_dir))
 {
+  // file descriptor to directory
   DIR *dir = fdopendir(dir_fd);
   if (!dir)
     die("fdopendir failed: %m");
 
+  // stores pointer to next directory
   struct dirent *de;
   while (de = readdir(dir))
     {
-      if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+      if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, "..")) // checks if directory == '.' or '..'
 	continue;
 
       struct stat st;
-      if (fstatat(dir_fd, de->d_name, &st, AT_SYMLINK_NOFOLLOW) < 0)
+      if (fstatat(dir_fd, de->d_name, &st, AT_SYMLINK_NOFOLLOW) < 0) // Checks if file is symlink?
 	die("Cannot stat %s: %m", de->d_name);
 
       if (st.st_dev != root_dev)
 	die("Unexpected mountpoint: %s", de->d_name);
 
-      if (S_ISDIR(st.st_mode))
+      if (S_ISDIR(st.st_mode)) // Checks if is directory
 	{
-	  int fd = openat(dir_fd, de->d_name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+	  int fd = openat(dir_fd, de->d_name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW); // opens directory wrt to dir_fd
 	  if (fd < 0)
 	    die("Cannot open directory %s: %m", de->d_name);
-	  walktree_fd(fd, root_dev, callback);;
-	  callback(dir_fd, de->d_name, 1);
+	  walktree_fd(fd, root_dev, callback);; // walks all subdirectories
+	  callback(dir_fd, de->d_name, 1); // calls the function; 1 = is directory
 	}
       else
-	callback(dir_fd, de->d_name, 0);
+	callback(dir_fd, de->d_name, 0); // 0 = not directory => file
     }
 
-  closedir(dir);
+  closedir(dir); // closes file descriptor
 }
 
 static void
@@ -155,6 +157,7 @@ rmtree(char *path)
   walktree(path, rmtree_helper);
 }
 
+// global variables used to be able to use walktree
 static uid_t chown_uid;
 static gid_t chown_gid;
 

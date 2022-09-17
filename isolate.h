@@ -33,10 +33,26 @@ extern gid_t box_gid, orig_gid;
 
 /* util.c */
 
+// malloc but dies on error
 void *xmalloc(size_t size);
+
+// strdup but dies on error
 char *xstrdup(char *str);
+
+// checks if directory exists
 int dir_exists(char *path);
+
+// walks along a file descriptor
+// file descriptor: That integer uniquely represents an opened file within a process. (https://stackoverflow.com/5256599/#comment57077771_5256705)
+static void walktree_fd(int, dev_t, void (*)(int, const char *, bool));
+
+// walks along directory tree with given path
+static void walktree(char*, void (*)(int, const char *, bool));
+
+
 void rmtree(char *path);
+
+// creates directory if does not exist
 void make_dir(char *path);
 void chowntree(char *path, uid_t uid, gid_t gid);
 void close_all_fds(void);
