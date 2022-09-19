@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include <stdbool.h>
 
 #define NONRET __attribute__((noreturn))
 #define UNUSED __attribute__((unused))
@@ -41,14 +42,6 @@ char *xstrdup(char *str);
 
 // checks if directory exists
 int dir_exists(char *path);
-
-// walks along a file descriptor
-// file descriptor: That integer uniquely represents an opened file within a process. (https://stackoverflow.com/5256599/#comment57077771_5256705)
-static void walktree_fd(int, dev_t, void (*)(int, const char *, bool));
-
-// walks along directory tree with given path
-static void walktree(char*, void (*)(int, const char *, bool));
-
 
 void rmtree(char *path);
 
