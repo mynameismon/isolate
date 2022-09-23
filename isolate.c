@@ -1040,7 +1040,7 @@ opt_uint(char *val)
 }
 
 int
-main(int argc, char **argv)
+isolate_entry_main(int argc, char **argv)
 {
   int c;
   int require_cg = 0;

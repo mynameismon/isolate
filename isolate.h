@@ -93,3 +93,6 @@ struct cf_per_box {
 void cf_parse(void);
 struct cf_per_box *cf_per_box(int box_id);
 struct cf_per_box *cf_current_box(void);
+
+// The main function inside an abstraction
+int isolate_entry_main(int, char **);
