@@ -1235,7 +1235,7 @@ init_options(struct options_t* options) {
   options->block_quota = -1;
   options->inode_quota = -1;
   options->redir_stderr = NULL;
-  options->redir_stderr_to_stdout = NULL;
+  options->redir_stderr_to_stdout = -1;
   options->silent = -1;
   options->verbose = -1;
   options->timeout = -1;
@@ -1252,7 +1252,6 @@ init_options(struct options_t* options) {
 
 void
 isolate_api_entry(struct options_t* options) {
-  int c;
   int require_cg = 0;
 
   enum opt_code mode = 0;
@@ -1277,7 +1276,7 @@ isolate_api_entry(struct options_t* options) {
   if (options->dir_action != NULL) {
     	if (!set_dir_action(optarg)) {
         ERROR = ERR_DIR_ACTION_INVALID;
-        ERRORMSG = sprintf("Invalid directory rule specified: %s\n", optarg);
+        sprintf(ERRORMSG, "Invalid directory rule specified: %s\n", optarg);
       }
       goto exit;
   }
@@ -1293,7 +1292,7 @@ isolate_api_entry(struct options_t* options) {
   if (options->environ != NULL) {
     if (!set_env_action(options->environ)) {
       ERROR = ERR_ENV_VAR_INVALID;
-      ERRORMSG = sprintf("Invalid environment specified: %s\n", optarg);
+      sprintf(ERRORMSG, "Invalid environment specified: %s\n", optarg);
       goto exit;
     }
   }
@@ -1444,4 +1443,5 @@ isolate_api_entry(struct options_t* options) {
     }
 
   exit: // Can add cleanup and error handling
+    return;
 }
