@@ -1213,3 +1213,235 @@ isolate_entry_main(int argc, char **argv)
     }
   exit(0);
 }
+
+void
+init_options(struct options_t* options) {
+
+  options->box_id = -1;
+  options->set_cwd = NULL;
+  options->cg_enable = -1;
+  options->dir_action = NULL;
+  options->no_default_dirs = -1;
+  options->pass_env = -1;
+  options->environ = NULL;
+  options->fsize_limit = -1;
+  options->stack_limit = -1;
+  options->open_file_limit = -1;
+  options->redir_stdin = NULL;
+  options->memory_limit = -1;
+  options->meta_options = NULL;
+  options->redir_stdout = NULL;
+  options->max_processes = -1;
+  options->block_quota = -1;
+  options->inode_quota = -1;
+  options->redir_stderr = NULL;
+  options->redir_stderr_to_stdout = NULL;
+  options->silent = -1;
+  options->verbose = -1;
+  options->timeout = -1;
+  options->wall_timeout = -1;
+  options->extra_timeout = -1;
+  options->mode = -1;
+  options->cg_memory_limit = -1;
+  options->cg_timing = -1;
+  options->share_net = -1;
+  options->inherit_fds = -1;
+  options->tty_hack = -1;
+  options->program = NULL;
+}
+
+void
+isolate_api_entry(struct options_t* options) {
+  int c;
+  int require_cg = 0;
+
+  enum opt_code mode = 0;
+
+  // Checks if error doesnt already exist
+  if (ERROR) goto exit;
+
+  init_dir_rules();
+  
+  if (options->box_id != -1) {
+    box_id = options->box_id;
+  }
+
+  if (options->set_cwd != NULL) {
+    set_cwd = options->set_cwd;
+  }
+
+  if (options->cg_enable != -1) {
+    cg_enable = options->cg_enable;
+  }  
+
+  if (options->dir_action != NULL) {
+    	if (!set_dir_action(optarg)) {
+        ERROR = ERR_DIR_ACTION_INVALID;
+        ERRORMSG = sprintf("Invalid directory rule specified: %s\n", optarg);
+      }
+      goto exit;
+  }
+
+  if (options->no_default_dirs == 1) {
+    default_dirs = 0;
+  } 
+
+  if (options->pass_env == 1) {
+    pass_environ = 1;
+  }
+
+  if (options->environ != NULL) {
+    if (!set_env_action(options->environ)) {
+      ERROR = ERR_ENV_VAR_INVALID;
+      ERRORMSG = sprintf("Invalid environment specified: %s\n", optarg);
+      goto exit;
+    }
+  }
+
+  if (options->fsize_limit != -1) {
+    fsize_limit = options->fsize_limit;
+  }
+
+  if (options->stack_limit != -1) {
+    stack_limit = options->stack_limit;
+  }
+
+  if (options->open_file_limit != -1) {
+    open_file_limit = options->open_file_limit;
+  }
+
+  if (options->redir_stdin != NULL) {
+    redir_stdin = options->redir_stdin;
+  }
+
+  if (options->memory_limit != -1) {
+    memory_limit = options->memory_limit;
+  }
+
+  if (options->meta_options != NULL) {
+    meta_open(options->meta_options);
+  }
+
+  if (options->redir_stdout != NULL) {
+    redir_stdout = options->redir_stdout;
+  }
+
+  if (options->max_processes != -1) {
+    max_processes = options->max_processes;
+  }
+
+  if (options->block_quota != -1) {
+    block_quota = options->block_quota;
+  }
+
+  if (options->inode_quota != -1) {
+    inode_quota = options->inode_quota;
+  }
+
+  if (options->redir_stderr != NULL) {
+    redir_stderr = options->redir_stderr;
+  }
+
+  if (options->redir_stderr_to_stdout != -1) {
+    redir_stderr_to_stdout = options->redir_stderr_to_stdout;
+  }
+
+  if (options->silent != -1) {
+    silent = options->silent;
+  }
+
+  if (options->timeout != -1) {
+    timeout = options->timeout;
+  }
+
+  if (options->verbose != -1) {
+    verbose = options->verbose;
+  }
+
+  if (options->wall_timeout != -1) {
+    wall_timeout = options->wall_timeout;
+  }
+
+  if (options->extra_timeout != -1) {
+    extra_timeout = options->extra_timeout;
+  }
+
+  if (options->mode != -1) {
+    mode = options->mode;
+  }
+
+  if (options->cg_memory_limit != -1) {
+    cg_memory_limit = options->cg_memory_limit;
+    require_cg = 1;
+  }
+
+  if (options->cg_timing != -1) {
+    cg_timing = options->cg_timing;
+    require_cg = 1;
+  }
+
+  if (options->share_net != -1) {
+    share_net = options->share_net;
+  }
+
+  if (options->inherit_fds != -1) {
+    inherit_fds = options->inherit_fds;
+  }
+
+  if (options->tty_hack != -1) {
+    tty_hack = options->tty_hack;
+  }
+
+  if (!mode) {
+    goto exit;
+  }
+
+  if (require_cg && !cg_enable) {
+    ERROR = ERR_CG_REQUIRED;
+    ERRORMSG = "Options related to control groups require --cg to be set.\n";
+    goto exit;
+  }
+
+  if (geteuid()) {
+    ERROR = ERR_ROOT_REQUIRED;
+    ERRORMSG = "Must be started as root";
+    goto exit;
+  }
+  if (getegid() && setegid(0) < 0) {
+    ERROR = ERR_ROOT_GRP_REQUIRED;
+    ERRORMSG = "Cannot switch to root group";
+    goto exit;
+  }
+  orig_uid = getuid();
+  orig_gid = getgid();
+
+  umask(022);
+  cf_parse();
+  box_init();
+  cg_init();
+
+  
+  switch (mode)
+    {
+    case OPT_INIT:
+      init();
+      break;
+    case OPT_RUN:
+      if (options->program == NULL) {
+        ERROR = ERR_PROGRAM_NOT_FOUND;
+        ERRORMSG = "run mode requires a command to run\n";
+        goto exit;
+      }
+      run(options->program);
+      break;
+    case OPT_CLEANUP:
+      cleanup();
+      break;
+    default:
+      ERROR = ERR_MODE_NOT_FOUND;
+      ERRORMSG = "Internal error: mode mismatch\n";
+      goto exit;
+    }
+
+  exit: // Can add cleanup and error handling
+}

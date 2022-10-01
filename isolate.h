@@ -90,9 +90,63 @@ struct cf_per_box {
   char *mems;
 };
 
+struct options_t {
+  int box_id;
+  char* set_cwd;
+  int cg_enable;
+  char* dir_action;
+  int no_default_dirs;
+  int pass_env;
+  char* environ;
+  int fsize_limit;
+  int stack_limit;
+  int open_file_limit;
+  char* redir_stdin; 
+  int memory_limit;
+  char* meta_options;
+  char* redir_stdout;
+  int max_processes;
+  int block_quota;
+  int inode_quota;
+  char* redir_stderr;
+  int redir_stderr_to_stdout;
+  int silent;
+  int timeout;
+  int verbose;
+  int wall_timeout;
+  int extra_timeout;
+  int mode;
+  int cg_memory_limit;
+  int cg_timing;
+  int share_net;
+  int inherit_fds;
+  int tty_hack;
+  char** program;
+};
+
 void cf_parse(void);
 struct cf_per_box *cf_per_box(int box_id);
 struct cf_per_box *cf_current_box(void);
 
 // The main function inside an abstraction
 int isolate_entry_main(int, char **);
+
+void isolate_api_entry(struct options_t*);
+
+enum ERR_CDS {
+  ERR_DIR_ACTION_INVALID,
+  ERR_ENV_VAR_INVALID,
+  ERR_INVALID_NUMBER,
+  ERR_NUM_OUT_OF_RANGE,
+  ERR_CG_REQUIRED,
+  ERR_ROOT_REQUIRED,
+  ERR_ROOT_GRP_REQUIRED,
+  ERR_PROGRAM_NOT_FOUND,
+  ERR_MODE_NOT_FOUND
+};
+
+char* ERRORMSG;
+
+int ERROR;
+
+void init_options (struct options_t*);
