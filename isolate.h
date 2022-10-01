@@ -122,6 +122,10 @@ struct options_t {
   int inherit_fds;
   int tty_hack;
   char** program;
+
+  int multiple_runs_enable;
+  int isolate_start;
+  int isolate_end;
 };
 
 void cf_parse(void);
@@ -142,7 +146,9 @@ enum ERR_CDS {
   ERR_ROOT_REQUIRED,
   ERR_ROOT_GRP_REQUIRED,
   ERR_PROGRAM_NOT_FOUND,
-  ERR_MODE_NOT_FOUND
+  ERR_MODE_NOT_FOUND,
+  ERR_MR_NOT_SET,
+  ERR_MR_INCOMPLETE
 };
 
 char* ERRORMSG;

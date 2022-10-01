@@ -79,12 +79,18 @@ int block_quota;
 int inode_quota;
 static int max_processes = 1;
 static char *redir_stdin, *redir_stdout, *redir_stderr;
+static char *meta_options;
 static int redir_stderr_to_stdout;
 static char *set_cwd;
 static int share_net;
 static int inherit_fds;
 static int default_dirs = 1;
 static int tty_hack;
+
+static int isolate_start;
+static int isolate_end;
+static int multiple_runs_enable;
+static int multiple_runs_require = 0;
 
 int cg_enable;
 int cg_memory_limit;
@@ -878,6 +884,41 @@ run(char **argv)
   setup_pipe(status_pipes, 0);
   setup_signals();
 
+  if (multiple_runs_enable) {
+    char* redir_stdin_f = redir_stdin;
+    char* redir_stdout_f = redir_stdout;
+    char* redir_stderr_f = redir_stderr;
+    char* meta_options_f = meta_options;
+
+
+    for (int i = isolate_start; i <= isolate_end; i++) {
+      
+      sprintf(redir_stdin, redir_stdin_f, i);
+      sprintf(redir_stdout, redir_stdout_f, i);
+      sprintf(redir_stderr, redir_stderr_f, i);
+      sprintf(meta_options, meta_options_f, i);
+
+      proxy_pid = clone(
+        box_proxy,			// Function to execute as the body of the new process
+        (void*)((uintptr_t)argv & ~(uintptr_t)15),	// Pass our stack, aligned to 16-bytes
+        SIGCHLD | CLONE_NEWIPC | (share_net ? 0 : CLONE_NEWNET) | CLONE_NEWNS | CLONE_NEWPID,
+        argv);			// Pass the arguments
+      if (proxy_pid < 0)
+        die("Cannot run proxy, clone failed: %m");
+      if (!proxy_pid)
+        die("Cannot run proxy, clone returned 0");
+
+      pid_t box_pid_inside_ns;
+      int n = read(status_pipes[0], &box_pid_inside_ns, sizeof(box_pid_inside_ns));
+      if (n != sizeof(box_pid_inside_ns))
+        die("Proxy failed before it passed box_pid: %m");
+      find_box_pid();
+      msg("Started proxy_pid=%d box_pid=%d box_pid_inside_ns=%d\n", (int) proxy_pid, (int) box_pid, (int) box_pid_inside_ns);
+
+      box_keeper();
+    }
+  }
+
   proxy_pid = clone(
     box_proxy,			// Function to execute as the body of the new process
     (void*)((uintptr_t)argv & ~(uintptr_t)15),	// Pass our stack, aligned to 16-bytes
@@ -1248,6 +1289,8 @@ init_options(struct options_t* options) {
   options->inherit_fds = -1;
   options->tty_hack = -1;
   options->program = NULL;
+  options->isolate_start = -1;
+  options->isolate_end = -1;
 }
 
 void
@@ -1318,7 +1361,7 @@ isolate_api_entry(struct options_t* options) {
   }
 
   if (options->meta_options != NULL) {
-    meta_open(options->meta_options);
+    meta_options = options->meta_options;
   }
 
   if (options->redir_stdout != NULL) {
@@ -1391,6 +1434,21 @@ isolate_api_entry(struct options_t* options) {
     tty_hack = options->tty_hack;
   }
 
+  if (options->multiple_runs_enable) {
+    multiple_runs_enable = options->multiple_runs_enable;
+    multiple_runs_require = 0;
+  }
+
+  if (options->isolate_start != -1) {
+    isolate_start = options->isolate_start;
+    multiple_runs_require++;
+  }
+
+  if (options->isolate_end != -1) {
+    isolate_end = options->isolate_end;
+    multiple_runs_require++;
+  }
+
   if (!mode) {
     goto exit;
   }
@@ -1398,6 +1456,18 @@ isolate_api_entry(struct options_t* options) {
   if (require_cg && !cg_enable) {
     ERROR = ERR_CG_REQUIRED;
     ERRORMSG = "Options related to control groups require --cg to be set.\n";
+    goto exit;
+  }
+
+  if (!multiple_runs_enable && multiple_runs_require) {
+    ERROR = ERR_MR_NOT_SET;
+    ERRORMSG = "Options related to multiple runs require the multiple runs variable to be set.\n";
+    goto exit;
+  }
+
+  if (multiple_runs_enable && multiple_runs_require != 2) {
+    ERROR = ERR_MR_INCOMPLETE;
+    ERRORMSG = "Options relating to multiple runs are incomplete.\n";
     goto exit;
   }
 
