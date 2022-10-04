@@ -5,8 +5,9 @@
 all: isolate isolate.1 isolate.1.html isolate-check-environment
 
 CC=gcc
-CFLAGS=-std=gnu99 -Wall -Wextra -Wno-parentheses -Wno-unused-result -Wno-missing-field-initializers -Wstrict-prototypes -Wmissing-prototypes -D_GNU_SOURCE
+CFLAGS=-std=gnu99 -Wall -Wextra -Wno-parentheses -Wno-unused-result -Wno-missing-field-initializers -Wstrict-prototypes -Wmissing-prototypes -D_GNU_SOURCE -O2
 LIBS=-lcap
+LINKFLAGS=-static $(LIBS) -o isolate
 
 VERSION=1.9
 YEAR=2022
@@ -24,11 +25,17 @@ MANDIR = $(DATADIR)/man
 MAN1DIR = $(MANDIR)/man1
 BOXDIR = $(VARPREFIX)/lib/isolate
 
-isolate: isolate.o util.o rules.o cg.o config.o main.o
+isolate: isolate.o util.o rules.o cg.o config.o main.o 
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 %.o: %.c isolate.h
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+release-exec: isolate.o util.o rules.o cg.o config.o main.o linker
+
+linker: 
+	$(CC) $(wildcard *.o) $(LINKFLAGS)
+	strip isolate
 
 isolate.o: CFLAGS += -DVERSION='"$(VERSION)"' -DYEAR='"$(YEAR)"' -DBUILD_DATE='"$(BUILD_DATE)"' -DBUILD_COMMIT='"$(BUILD_COMMIT)"'
 config.o: CFLAGS += -DCONFIG_FILE='"$(CONFIG)"'
